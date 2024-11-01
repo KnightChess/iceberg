@@ -40,6 +40,7 @@ buildscript {
     classpath "com.github.alisiikh:gradle-scalastyle-plugin:3.5.0"
     classpath 'org.revapi:gradle-revapi:1.8.0'
     classpath 'com.gorylenko.gradle-git-properties:gradle-git-properties:2.4.2'
+    classpath 'com.palantir.gradle.revapi:gradle-revapi:1.7.0'
     classpath 'com.palantir.gradle.gitversion:gradle-git-version:3.1.0'
     classpath 'org.openapitools:openapi-generator-gradle-plugin:6.6.0'
   }
@@ -138,38 +139,39 @@ subprojects {
 
   apply plugin: 'java-library'
 
-  if (project.name in REVAPI_PROJECTS) {
-    apply plugin: 'org.revapi.revapi-gradle-plugin'
-    revapi {
-      oldGroup = project.group
-      oldName = project.name
-      oldVersion = "1.5.0"
-    }
-
-    tasks.register('showDeprecationRulesOnRevApiFailure') {
-      doLast {
-        throw new RuntimeException("==================================================================================" +
-                "\nAPI/ABI breaks detected.\n" +
-                "Adding RevAPI breaks should only be done after going through a deprecation cycle." +
-                "\nPlease make sure to follow the deprecation rules defined in\n" +
-                "https://github.com/apache/iceberg/blob/main/CONTRIBUTING.md#semantic-versioning.\n" +
-                "==================================================================================")
-      }
-      onlyIf {
-        tasks.revapi.state.failure != null
-      }
-    }
-
-    tasks.configureEach { rootTask ->
-      if (rootTask.name == 'revapi') {
-        rootTask.finalizedBy showDeprecationRulesOnRevApiFailure
-      }
-    }
-    
-    tasks.named("revapiAnalyze").configure {
-      dependsOn(":iceberg-common:jar")
-    }
-  }
+  // 先关闭，不存在历史版本兼容性问题
+//  if (project.name in REVAPI_PROJECTS) {
+//    apply plugin: 'com.palantir.revapi'
+//    revapi {
+//      oldGroup = project.group
+//      oldName = project.name
+//      oldVersion = "1.5.0"
+//    }
+//
+//    tasks.register('showDeprecationRulesOnRevApiFailure') {
+//      doLast {
+//        throw new RuntimeException("==================================================================================" +
+//                "\nAPI/ABI breaks detected.\n" +
+//                "Adding RevAPI breaks should only be done after going through a deprecation cycle." +
+//                "\nPlease make sure to follow the deprecation rules defined in\n" +
+//                "https://github.com/apache/iceberg/blob/main/CONTRIBUTING.md#semantic-versioning.\n" +
+//                "==================================================================================")
+//      }
+//      onlyIf {
+//        tasks.revapi.state.failure != null
+//      }
+//    }
+//
+//    tasks.configureEach { rootTask ->
+//      if (rootTask.name == 'revapi') {
+//        rootTask.finalizedBy showDeprecationRulesOnRevApiFailure
+//      }
+//    }
+//
+//    tasks.named("revapiAnalyze").configure {
+//      dependsOn(":iceberg-common:jar")
+//    }
+//  }
 
   configurations {
     testImplementation.extendsFrom compileOnly
@@ -1072,4 +1074,23 @@ project(':iceberg-bom') {
 
   // Needed to get the "faked" Scala artifacts into the bom
   javaPlatform { allowDependencies() }
+}
+
+task mergeTestReports(type: TestReport) {
+  destinationDir = file("$buildDir/reports/tests/mergedTestReport")
+  reportOn subprojects.findAll { project ->
+    project.name in [
+            'iceberg-spark-3.2_2.12',
+            'iceberg-spark-extensions-3.2_2.12',
+            'iceberg-spark-runtime-3.2_2.12',
+            'iceberg-api',
+            'iceberg-arrow',
+            'iceberg-common',
+            'iceberg-core',
+            'iceberg-data',
+            'iceberg-hive-metastore',
+            'iceberg-orc',
+            'iceberg-parquet'
+    ]
+  }*.test
 }

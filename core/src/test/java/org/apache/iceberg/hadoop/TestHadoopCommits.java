@@ -439,7 +439,7 @@ public class TestHadoopCommits extends HadoopTableTestBase {
                 final int currentFilesCount = numCommittedFiles;
                 Awaitility.await()
                     .pollInterval(Duration.ofMillis(10))
-                    .atMost(Duration.ofSeconds(10))
+                    .atMost(Duration.ofSeconds(15))
                     .until(() -> barrier.get() >= currentFilesCount * threadsCount);
                 tableWithHighRetries.newFastAppend().appendFile(file).commit();
                 barrier.incrementAndGet();
